@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buyer Dashboard - DreamHome</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/common.js"></script>
+  <script src="buyer.js"></script>
+</head>
+<body onload="initBuyerDashboard()">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <h1>🏠 DreamHome - Buyer Dashboard</h1>
+      <button class="logout-btn" onclick="logout('buyer')">Logout</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Search Section -->
+    <div class="search-container">
+      <h2>🔍 Search Properties</h2>
+      <p>Find your perfect home by city</p>
+      
+      <div class="search-form">
+        <div class="search-group">
+          <label class="form-label" for="cityFilter">Enter City Name</label>
+          <input type="text" id="cityFilter" class="form-input" placeholder="e.g., Bangalore, Mumbai, Delhi">
+        </div>
+        <button class="search-btn" onclick="loadHousesByCity()">Search</button>
+      </div>
+      
+      <!-- Filter Options -->
+      <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+        <label style="display: flex; align-items: center; gap: 5px; font-size: 14px;">
+          <input type="checkbox" id="showAllHouses" checked style="margin: 0;">
+          Show all properties (including pending)
+        </label>
+      </div>
+      
+      <!-- Quick City Buttons -->
+      <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn" onclick="quickSearch('Bangalore')" style="padding: 8px 16px; font-size: 14px;">Bangalore</button>
+        <button class="btn" onclick="quickSearch('Kerala')" style="padding: 8px 16px; font-size: 14px;">Kerala</button>
+        <button class="btn" onclick="quickSearch('Delhi')" style="padding: 8px 16px; font-size: 14px;">Delhi</button>
+        <button class="btn" onclick="quickSearch('Chennai')" style="padding: 8px 16px; font-size: 14px;">Chennai</button>
+        <button class="btn" onclick="quickSearch('Vijayawada')" style="padding: 8px 16px; font-size: 14px;">Vijayawada</button>
+        <button class="btn" onclick="quickSearch('Hyderabad')" style="padding: 8px 16px; font-size: 14px;">Hyderabad</button>
+
+
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="form-container">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>🏠 Available Properties</h2>
+        <div>
+          <label for="sortSelect">Sort by: </label>
+          <select id="sortSelect" onchange="sortHouses()" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="sqft-asc">Area: Small to Large</option>
+            <option value="sqft-desc">Area: Large to Small</option>
+          </select>
+          <button class="btn" style="margin-left: 10px;" onclick="loadAllHouses()">View All</button>
+        </div>
+      </div>
+
+      <div id="approvedHouses" class="grid">
+        <div class="loading">
+          <p>Loading properties...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Buyer dashboard functionality
+    let currentHouses = [];
+
+    function initBuyerDashboard() {
+      const jwt = getJWT('buyer');
+      if (!jwt) {
+        alert("Please login first!");
+        window.location.href = "login.html";
+        return;
+      }
+      
+      // Show welcome message
+      showWelcomeMessage();
+    }
+
+    function showWelcomeMessage() {
+      const container = document.getElementById("approvedHouses");
+      container.innerHTML = `
+        <div class="empty-state">
+          <h3>Welcome to DreamHome!</h3>
+          <p>Enter a city name above to search for properties.</p>
+        </div>
+      `;
+    }
+
+    async function loadHousesByCity() {
+      const city = document.getElementById("cityFilter").value.trim();
+      
+      if (!city) {
+        alert("Please enter a city name to search for properties.");
+        return;
+      }
+
+      const jwt = getJWT('buyer');
+      if (!jwt) {
+        alert("Please login first!");
+        window.location.href = "login.html";
+        return;
+      }
+      
+      console.log("JWT Token:", jwt);
+      console.log("JWT Length:", jwt.length);
+
+      const container = document.getElementById("approvedHouses");
+      container.innerHTML = `
+        <div class="loading">
+          <p>Searching properties in ${city}...</p>
+        </div>
+      `;
+
+      try {
+        // Simple API call with JWT token
+        const response = await fetch(`/api/houseDetails/retrieve-houses?city=${encodeURIComponent(city)}`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${jwt}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log("API Response:", data); // Debug log
+        
+        currentHouses = Array.isArray(data.houses_list) ? data.houses_list : [];
+        console.log("Total houses found:", currentHouses.length);
+        
+        // Check if user wants to see all houses or only approved
+        const showAll = document.getElementById('showAllHouses').checked;
+        
+        let housesToShow;
+        if (showAll) {
+          housesToShow = currentHouses; // Show all houses
+          console.log("Showing all houses:", currentHouses.length);
+        } else {
+          housesToShow = currentHouses.filter(house => 
+            house.adminStatus && house.adminStatus.toLowerCase() === 'approved'
+          );
+          console.log("Showing only approved houses:", housesToShow.length);
+        }
+
+        if (housesToShow.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <h3>No Properties Found</h3>
+              <p>We couldn't find any properties in "${city}". Try a different city.</p>
+              <button class="btn" onclick="clearSearch()">Search Again</button>
+            </div>
+          `;
+          return;
+        }
+        
+        // Update currentHouses for sorting
+        currentHouses = housesToShow;
+
+        displayHouses(currentHouses);
+
+      } catch (error) {
+        console.error("Error loading houses:", error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Search Error</h3>
+            <p>Error: ${error.message}</p>
+            <button class="btn" onclick="loadHousesByCity()">Retry</button>
+          </div>
+        `;
+      }
+    }
+
+    function displayHouses(houses) {
+      const container = document.getElementById("approvedHouses");
+      container.innerHTML = "";
+
+      houses.forEach(house => {
+        const houseCard = createHouseCard(house);
+        container.appendChild(houseCard);
+      });
+    }
+
+    function createHouseCard(house) {
+      const card = document.createElement("div");
+      card.className = "card";
+      
+      const imageSrc = (typeof resolveImageUrl === "function" ? resolveImageUrl(house.imagePath) : (house.imagePath || "").trim()) || (typeof getLocalPlaceholderImageUrl === "function" ? getLocalPlaceholderImageUrl() : "/images/placeholder.svg");
+      const adminStatus = house.adminStatus?.trim() || "pending";
+      
+      // Create status badge
+      let statusBadge = '';
+      if (adminStatus.toLowerCase() === 'approved') {
+        statusBadge = '<span class="status status-approved">✅ Approved</span>';
+      } else if (adminStatus.toLowerCase() === 'pending') {
+        statusBadge = '<span class="status status-pending">⏳ Pending</span>';
+      } else {
+        statusBadge = '<span class="status status-rejected">❌ Rejected</span>';
+      }
+      
+      card.innerHTML = `
+        <img src="${imageSrc}" alt="${house.houseModel}"
+             onerror="this.onerror=null; this.src=(typeof getLocalPlaceholderImageUrl==='function'?getLocalPlaceholderImageUrl():'/images/placeholder.svg')">
+        
+        <div class="card-content">
+          <h3>${house.houseModel || "Property"}</h3>
+          <p><strong>📍 Location:</strong> ${house.city}, ${house.state}</p>
+          <p><strong>📐 Area:</strong> ${house.sqft} sq ft</p>
+          <p><strong>📞 Contact:</strong> ${house.contactNumber}</p>
+          <p><strong>🏷️ Status:</strong> ${house.status || 'Available'}</p>
+          
+          <div class="price">₹${Number(house.price).toLocaleString()}</div>
+          
+          <div style="text-align: center; margin: 10px 0;">
+            ${statusBadge}
+          </div>
+          
+          <div class="actions">
+            <button class="favorite-btn" onclick="toggleFavorite(${house.houseId})">
+              ❤️ Favorite
+            </button>
+          </div>
+        </div>
+      `;
+      
+      return card;
+    }
+
+    function quickSearch(city) {
+      document.getElementById("cityFilter").value = city;
+      loadHousesByCity();
+    }
+
+    function sortHouses() {
+      const sortBy = document.getElementById("sortSelect").value;
+      let sortedHouses = [...currentHouses];
+
+      switch (sortBy) {
+        case 'price-asc':
+          sortedHouses.sort((a, b) => Number(a.price) - Number(b.price));
+          break;
+        case 'price-desc':
+          sortedHouses.sort((a, b) => Number(b.price) - Number(a.price));
+          break;
+        case 'sqft-asc':
+          sortedHouses.sort((a, b) => Number(a.sqft) - Number(b.sqft));
+          break;
+        case 'sqft-desc':
+          sortedHouses.sort((a, b) => Number(b.sqft) - Number(a.sqft));
+          break;
+      }
+
+      displayHouses(sortedHouses);
+    }
+
+    function toggleFavorite(houseId) {
+      const btn = event.target;
+      if (btn.innerHTML.includes('❤️')) {
+        btn.innerHTML = '🤍 Favorite';
+        console.log(`Removed house ${houseId} from favorites`);
+      } else {
+        btn.innerHTML = '❤️ Favorited';
+        console.log(`Added house ${houseId} to favorites`);
+      }
+    }
+
+    function clearSearch() {
+      document.getElementById("cityFilter").value = "";
+      showWelcomeMessage();
+    }
+
+    // Add Enter key support for search
+    document.getElementById("cityFilter").addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        loadHousesByCity();
+      }
+    });
+
+    // Ensure View All is available globally even if external script fails to attach
+    window.loadAllHouses = window.loadAllHouses || async function() {
+      const jwt = getJWT('buyer');
+      if (!jwt) {
+        alert("Please login first!");
+        window.location.href = "login.html";
+        return;
+      }
+      const container = document.getElementById("approvedHouses");
+      container.innerHTML = `
+        <div class="loading">
+          <p>Loading all properties...</p>
+        </div>
+      `;
+      try {
+        const response = await fetch(`/api/houseDetails/retrieve-all-houses`, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${jwt}` }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        currentHouses = Array.isArray(data.houses_list) ? data.houses_list : [];
+        displayHouses(currentHouses);
+      } catch (error) {
+        console.error("View All error:", error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>Error Loading Properties</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Property - DreamHome</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <script src="../js/common.js"></script>
+  <script>
+    function showFlash(message, type) {
+      var el = document.getElementById("flashMessage");
+      if (!el) return;
+      el.textContent = message;
+      el.style.display = "block";
+      el.style.background = type === 'error' ? '#ffebee' : '#e8f5e9';
+      el.style.color = type === 'error' ? '#c62828' : '#2e7d32';
+      el.style.border = '1px solid ' + (type === 'error' ? '#ef9a9a' : '#a5d6a7');
+    }
+    function getCleanJWT() {
+      const token = localStorage.getItem("sellerJWT");
+      if (!token) return null;
+      return token.trim().replace(/^"|"$/g, "");
+    }
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    async function initEditHouse() {
+      const jwt = getCleanJWT();
+      if (!jwt) {
+        alert("Please login first!");
+        window.location.href = "login.html";
+        return;
+      }
+      let houseId = getQueryParam('houseId');
+      if (!houseId) {
+        try { houseId = localStorage.getItem('editingHouseId'); } catch (e) {}
+      }
+      if (!houseId) {
+        alert("Missing houseId");
+        window.location.href = "seller-dashboard.html";
+        return;
+      }
+      try {
+        const res = await fetch("/api/houseDetails/retrieve-seller-houses", { method: "GET", headers: { "Authorization": "Bearer " + jwt }});
+        const data = await res.json();
+        const list = Array.isArray(data.seller_houses_list) ? data.seller_houses_list : [];
+        const house = list.find(h => String(h.houseId) === String(houseId));
+        if (!house) {
+          alert("Property not found or not owned by you.");
+          window.location.href = "seller-dashboard.html";
+          return;
+        }
+        // Prefill
+        document.getElementById("edit_houseId").value = house.houseId;
+        document.getElementById("edit_houseModel").value = house.houseModel || "";
+        document.getElementById("edit_price").value = house.price || "";
+        document.getElementById("edit_sqft").value = house.sqft || "";
+        document.getElementById("edit_city").value = house.city || "";
+        document.getElementById("edit_state").value = house.state || "";
+        document.getElementById("edit_contactNumber").value = house.contactNumber || "";
+        document.getElementById("edit_status").value = house.status || "";
+        window.__editingHouse = house; // keep for imagePath/adminStatus
+      } catch (e) {
+        console.error(e);
+        alert("Failed to load property.");
+        window.location.href = "seller-dashboard.html";
+      }
+    }
+
+    async function submitUpdateHousePage() {
+      const jwt = getCleanJWT();
+      if (!jwt) {
+        alert("Please login first!");
+        window.location.href = "login.html";
+        return false;
+      }
+      let houseId = document.getElementById("edit_houseId").value;
+      if (!houseId) {
+        houseId = getQueryParam('houseId') || (localStorage.getItem('editingHouseId') || "");
+      }
+      if (!houseId) {
+        alert("Missing houseId.");
+        return false;
+      }
+      const existing = window.__editingHouse || {};
+      const priceVal = Number(document.getElementById("edit_price").value);
+      const sqftVal = Number(document.getElementById("edit_sqft").value);
+      if (!isFinite(priceVal) || priceVal <= 0 || !isFinite(sqftVal) || sqftVal <= 0) {
+        alert("Please enter valid numeric values for price and area.");
+        return false;
+      }
+      const body = {
+        houseModel: document.getElementById("edit_houseModel").value.trim(),
+        price: priceVal,
+        sqft: sqftVal,
+        city: document.getElementById("edit_city").value.trim(),
+        state: document.getElementById("edit_state").value.trim(),
+        contactNumber: document.getElementById("edit_contactNumber").value.trim(),
+        status: (document.getElementById("edit_status").value || "Available").trim(),
+        imagePath: existing.imagePath || ("/images/default.png"),
+        adminStatus: existing.adminStatus || "pending"
+      };
+      try {
+        const res = await fetch(`/api/houseDetails/update-house?houseId=${encodeURIComponent(houseId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + jwt },
+          body: JSON.stringify(body)
+        });
+        const raw = await res.text();
+        if (!res.ok) {
+          showFlash(raw || "Failed to update property.", 'error');
+          return false;
+        }
+        let msg = "Property updated successfully.";
+        try {
+          const json = raw ? JSON.parse(raw) : null;
+          if (json && (json.message || json.status === true)) {
+            msg = json.message || msg;
+          }
+        } catch (_) {
+          // Non-JSON success; keep default message
+        }
+        // Show message immediately, then force redirect to images page
+        alert(msg);
+        // Force navigation without adding history entry and include view flag
+        window.location.href = "seller-dashboard.html?view=my";
+      } catch (e) {
+        console.error(e);
+        alert("Failed to update property.");
+        // Stay on page to allow correction
+      }
+      return false;
+    }
+  </script>
+</head>
+<body onload="initEditHouse()">
+  <div class="header">
+    <div class="header-content">
+      <h1>🏠 DreamHome - Edit Property</h1>
+      <button class="logout-btn" onclick="logout('seller')">Logout</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="form-container">
+      <div id="flashMessage" style="display:none; padding:10px; border-radius:8px; margin-bottom:12px;"></div>
+      <h2>✏️ Edit Property</h2>
+      <form onsubmit="return submitUpdateHousePage()">
+        <input type="hidden" id="edit_houseId" />
+        <div class="form-group">
+          <label class="form-label" for="edit_houseModel">Property Name *</label>
+          <input type="text" id="edit_houseModel" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_price">Price (₹) *</label>
+          <input type="number" id="edit_price" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_sqft">Area (sq ft) *</label>
+          <input type="number" id="edit_sqft" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_city">City *</label>
+          <input type="text" id="edit_city" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_state">State *</label>
+          <input type="text" id="edit_state" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_contactNumber">Contact Number *</label>
+          <input type="tel" id="edit_contactNumber" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit_status">Property Status</label>
+          <input type="text" id="edit_status" class="form-input" placeholder="Available" />
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px;">
+          <button type="button" class="btn btn-secondary" onclick="window.location.href='seller-dashboard.html'">Cancel</button>
+          <button type="submit" class="btn btn-success">💾 Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
+

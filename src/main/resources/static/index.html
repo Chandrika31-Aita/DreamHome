@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DreamHome - Real Estate Platform</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #007FFF; /* Vibrant Blue */
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center content vertically */
+            text-align: center;
+        }
+
+        .hero {
+            background-color: #007FFF; /* Hero section matches background */
+            color: white;
+            padding: 80px 20px;
+            margin-bottom: 40px;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .user-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .user-type {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .user-type:hover {
+            transform: translateY(-5px);
+        }
+
+        .user-type h3 {
+            color: #0d47a1; /* Darker blue for headings */
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .user-type p {
+            color: #0d47a1;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .user-type .btn {
+            display: inline-block;
+            background-color: #0d47a1; /* Button color */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .user-type .btn:hover {
+            background-color: #083b8c; /* Darker blue on hover */
+        }
+
+        /* Mobile responsiveness */
+        @media screen and (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .user-type h3 {
+                font-size: 1.3rem;
+            }
+
+            .user-type .btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 0.9rem;
+            }
+
+            .user-type h3 {
+                font-size: 1.2rem;
+            }
+
+            .user-type .btn {
+                padding: 8px 18px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🏠 DreamHome</h1>
+        <p>Find Your Perfect Home - Buy, Sell, and Manage Properties</p>
+        
+        <div class="user-types">
+            <div class="user-type">
+                <h3>🏡 Buyer</h3>
+                <p>Browse and search for your ideal home. Find properties by location, price range, and features.</p>
+                <a href="buyer/login.html" class="btn">Start Browsing</a>
+            </div>
+            
+            <div class="user-type">
+                <h3>🏗️ Seller</h3>
+                <p>List your property and connect with potential buyers. Manage your listings and track performance.</p>
+                <a href="seller/login.html" class="btn">List Property</a>
+            </div>
+            
+            <div class="user-type">
+                <h3>⚙️ Admin</h3>
+                <p>Manage the platform, approve listings, and ensure quality control across all property listings.</p>
+                <a href="admin/login.html" class="btn">Manage Platform</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
